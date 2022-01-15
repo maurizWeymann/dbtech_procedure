@@ -71,11 +71,7 @@ from fahrzeug where kennzeichen = p_kennzeichen;
             
             select * into v_fahrzeug from fahrzeug where kennzeichen = p_kennzeichen; 
 
-      end if;
-        
-    
-         
-        
+      end if;     
 
     -- CHECK OB KENNZEICHEN IM MANUELLEN VERFAHREN --
     select * bulk collect into V_BUCHUNG_TABLE
@@ -105,7 +101,7 @@ from fahrzeug where kennzeichen = p_kennzeichen;
             and FAHRZEUGGERAT.FZ_ID = v_fahrzeug.fz_id;  
             
             --erstelle Mauterhebungstabelle mit FZG_ID aus Tabelle Fahrzeuggerät
-            if V_FAHRZEUGGERAT.fz_id is not null then dbms_output.put_line('Fahrzeug mit aktivem Gerät gefunden');
+            if V_FAHRZEUGGERAT.fz_id is not null and p_achszahl = v_fahrzeug.achsen then dbms_output.put_line('Fahrzeug mit aktivem Gerät gefunden');
             
             dbms_output.put_line(v_fahrzeug.achsen || ' Achsen');
                 if v_fahrzeug.achsen <= 4 then
@@ -131,6 +127,7 @@ from fahrzeug where kennzeichen = p_kennzeichen;
                 
                 
             else dbms_output.put_line('Kein Fahrzeug mit aktivem Gerät gefunden');
+            RAISE INVALID_VEHICLE_DATA;
                     
             end if;        
     end if;
