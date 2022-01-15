@@ -62,13 +62,20 @@ V_MAUTABSCHNITT MAUTABSCHNITT % ROWTYPE;
 BEGIN -- berechnemaut() --   
 dbms_output.put_line('Start berechne Maut');
 -- CHECK OB KENNZEICHEN IM AUTOMATISCHEN VERFAHREN --
-select * into v_fahrzeug
+select * bulk collect into v_fahrzeug_TABLE
 from fahrzeug where kennzeichen = p_kennzeichen;
 
-        if v_fahrzeug.kennzeichen is null then v_KennzeichenImAutomatikVerfahrenGefunden := false; 
-            else --Fahrzeug ist im automatischen Verfahren
-                v_KennzeichenImAutomatikVerfahrenGefunden := true; 
-        end if;
+        if v_fahrzeug_TABLE.count = 0 then v_KennzeichenImAutomatikVerfahrenGefunden := false; 
+        else --Fahrzeug ist im automatischen Verfahren
+            v_KennzeichenImAutomatikVerfahrenGefunden := true; 
+            
+            select * into v_fahrzeug from fahrzeug where kennzeichen = p_kennzeichen; 
+
+      end if;
+        
+    
+         
+        
 
     -- CHECK OB KENNZEICHEN IM MANUELLEN VERFAHREN --
     select * bulk collect into V_BUCHUNG_TABLE
@@ -137,19 +144,6 @@ from fahrzeug where kennzeichen = p_kennzeichen;
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 if v_KennzeichenImAutomatikVerfahrenGefunden = false and v_KennzeichenImManuellenVerfahrenGefunden = false
 then
 RAISE UNKOWN_VEHICLE;
@@ -158,9 +152,8 @@ end if;
 --dbms_output.put_line(v_fahrzeug_table.count);
 -----------------------------------------------------------------------------
 EXCEPTION
-
-    WHEN UNKOWN_VEHICLE         THEN RAISE UNKOWN_VEHICLE ;
-    WHEN INVALID_VEHICLE_DATA   THEN RAISE INVALID_VEHICLE_DATA ;
+WHEN UNKOWN_VEHICLE         THEN RAISE UNKOWN_VEHICLE ;
+WHEN INVALID_VEHICLE_DATA   THEN RAISE INVALID_VEHICLE_DATA ;
 -----------------------------------------------------------------------------
 -----------------------------------------------------------------------------
 END berechnemaut;
