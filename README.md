@@ -16,6 +16,9 @@ p_kennzeichen    fahrzeug.kennzeichen%TYPE
     
     nextMautID number(10);
     
+    offeneBuchung boolean:= false;
+    offeneBuchungsID number(10);
+    
     v_KennzeichenImAutomatikVerfahrenGefunden boolean;
     v_KennzeichenImManuellenVerfahrenGefunden boolean;
 
@@ -35,7 +38,8 @@ V_FAHRZEUGGERAT FAHRZEUGGERAT % ROWTYPE ;
 -- BuchungTabelle und BuchungEintag DEFINITION --
 type t_buchung IS TABLE OF BUCHUNG % ROWTYPE ;
 V_BUCHUNG_TABLE T_BUCHUNG ;
-V_SINGLEBUCHUNG BUCHUNG % ROWTYPE ;
+V_BUCHUNG BUCHUNG % ROWTYPE ;
+v_buchung_id BUCHUNG.BUCHUNG_ID % TYPE;
 ---------------------------------------------------
 
 -- MauterhebungTabelle DEFINITION --
@@ -61,25 +65,35 @@ V_MAUTABSCHNITT MAUTABSCHNITT % ROWTYPE;
 
 BEGIN -- berechnemaut() --   
 dbms_output.put_line('Start berechne Maut');
--- CHECK OB KENNZEICHEN IM AUTOMATISCHEN VERFAHREN --
-select * bulk collect into v_fahrzeug_TABLE
-from fahrzeug where kennzeichen = p_kennzeichen;
 
+    -- CHECK OB KENNZEICHEN IM AUTOMATISCHEN VERFAHREN --
+    select * bulk collect into v_fahrzeug_TABLE
+        from fahrzeug where kennzeichen = p_kennzeichen;
+        
         if v_fahrzeug_TABLE.count = 0 then v_KennzeichenImAutomatikVerfahrenGefunden := false; 
         else --Fahrzeug ist im automatischen Verfahren
-            v_KennzeichenImAutomatikVerfahrenGefunden := true; 
             
             select * into v_fahrzeug from fahrzeug where kennzeichen = p_kennzeichen; 
+            
+                --Prüft ob das Gefunde Fahrzeug ein Fahrzeuggerät hat
+                select * BULK COLLECT into V_FAHRZEUGGERAT_TABLE from FAHRZEUGGERAT where FZ_ID = v_fahrzeug.fz_id;
+                dbms_output.put_line(V_FAHRZEUGGERAT_TABLE.count || 'Geräte gefunden');
+                if V_FAHRZEUGGERAT_TABLE.count = 0 then
+                    v_KennzeichenImAutomatikVerfahrenGefunden := false;    
+                else
+                    v_KennzeichenImAutomatikVerfahrenGefunden := true; 
+                end if;
 
-      end if;     
+        end if;     
 
-    -- CHECK OB KENNZEICHEN IM MANUELLEN VERFAHREN --
+    -- CHECK OB KENNZEICHEN BUCHUNG IM MANUELLEN VERFAHREN FÜR PASSENDEN MAUTABSCHNITT HAT--
     select * bulk collect into V_BUCHUNG_TABLE
-        from buchung where kennzeichen = p_kennzeichen;
+        from buchung where kennzeichen = p_kennzeichen and abschnitts_ID = p_mautabschnitt;
         
         if V_BUCHUNG_TABLE.count = 0 then v_KennzeichenImManuellenVerfahrenGefunden := false;
             else --Fahrzeug ist im manuellen Verfahren
-                v_KennzeichenImManuellenVerfahrenGefunden := true; dbms_output.put_line('Fahrzeug ist im manuellen Verfahren');
+                v_KennzeichenImManuellenVerfahrenGefunden := true;
+                
         end if;
     
     -- ERSTELLE TABELLE MAUTKATEGORIE
@@ -135,6 +149,38 @@ from fahrzeug where kennzeichen = p_kennzeichen;
 
 -- MANUELLES VERFAHREN
 
+    if v_KennzeichenImManuellenVerfahrenGefunden = true then
+        dbms_output.put_line('Fahrzeug ist im manuellen Verfahren');
+        
+     for v_i in 1 .. v_buchung_table.count
+        loop
+            if v_buchung_table(v_i).b_id = 1  then
+            offeneBuchung := true;
+            offeneBuchungsID := v_buchung_table(v_i).BUCHUNG_ID;
+            end if;
+            dbms_output.put_line('BuchungsID: '||v_buchung_table(v_i).b_id);
+            dbms_output.put_line('Mautabschnitt: '||v_buchung_table(v_i).ABSCHNITTS_ID);
+        end loop;
+        
+        if offeneBuchung != true then
+            raise ALREADY_CRUISED;
+        
+        else   
+        dbms_output.put_line('BuchungsID: '||offeneBuchungsID);
+        UPDATE buchung SET b_id = 3, Befahrungsdatum = Localtimestamp 
+            where buchung_id = offeneBuchungsID;
+            
+            
+        end if;
+ 
+        
+        
+        
+        dbms_output.put_line('Mautkategorie: '||achszahlString);
+        
+    end if;
+
+
 
 
 
@@ -145,12 +191,11 @@ if v_KennzeichenImAutomatikVerfahrenGefunden = false and v_KennzeichenImManuelle
 then
 RAISE UNKOWN_VEHICLE;
 end if;
-
---dbms_output.put_line(v_fahrzeug_table.count);
 -----------------------------------------------------------------------------
 EXCEPTION
 WHEN UNKOWN_VEHICLE         THEN RAISE UNKOWN_VEHICLE ;
 WHEN INVALID_VEHICLE_DATA   THEN RAISE INVALID_VEHICLE_DATA ;
+WHEN ALREADY_CRUISED        THEN RAISE ALREADY_CRUISED;
 -----------------------------------------------------------------------------
 -----------------------------------------------------------------------------
 END berechnemaut;
