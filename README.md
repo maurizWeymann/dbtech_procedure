@@ -19,6 +19,11 @@ p_kennzeichen    fahrzeug.kennzeichen%TYPE
     offeneBuchung boolean:= false;
     offeneBuchungsID number(10);
     
+    gebuchteMautkategorie number(2);
+    
+    gebuchteAchszahl varchar(5);
+    registrierteAchszahl varchar(5);
+    
     v_KennzeichenImAutomatikVerfahrenGefunden boolean;
     v_KennzeichenImManuellenVerfahrenGefunden boolean;
 
@@ -157,27 +162,33 @@ dbms_output.put_line('Start berechne Maut');
             if v_buchung_table(v_i).b_id = 1  then
             offeneBuchung := true;
             offeneBuchungsID := v_buchung_table(v_i).BUCHUNG_ID;
+            gebuchteMautkategorie := v_buchung_table(v_i).kategorie_id;
             end if;
-            dbms_output.put_line('BuchungsID: '||v_buchung_table(v_i).b_id);
+            dbms_output.put_line('BuchungsStatus: '||v_buchung_table(v_i).b_id);
             dbms_output.put_line('Mautabschnitt: '||v_buchung_table(v_i).ABSCHNITTS_ID);
+            dbms_output.put_line('Gebuchte Mautkategorie: '||v_buchung_table(v_i).kategorie_id);
         end loop;
+        
+        if offeneBuchung = true then
+            select achszahl into gebuchteAchszahl from mautkategorie where gebuchteMautkategorie = KATEGORIE_ID;
+            dbms_output.put_line('Gebuchte Achszahl: '||gebuchteAchszahl);
+            if p_achszahl <= 4 then
+                registrierteAchszahl := '= ' || p_achszahl;
+            elsif p_achszahl > 4 then
+                registrierteAchszahl := '>= 5';
+            end if;
+        end if;
         
         if offeneBuchung != true then
             raise ALREADY_CRUISED;
-        
+        elsif registrierteAchszahl != gebuchteAchszahl then
+            raise INVALID_VEHICLE_DATA;
         else   
-        dbms_output.put_line('BuchungsID: '||offeneBuchungsID);
-        UPDATE buchung SET b_id = 3, Befahrungsdatum = Localtimestamp 
-            where buchung_id = offeneBuchungsID;
-            
-            
+            dbms_output.put_line('BuchungsID: '||offeneBuchungsID);
+            UPDATE buchung SET b_id = 3, Befahrungsdatum = Localtimestamp 
+                where buchung_id = offeneBuchungsID;          
         end if;
- 
-        
-        
-        
-        dbms_output.put_line('Mautkategorie: '||achszahlString);
-        
+        dbms_output.put_line('Mautkategorie: '||achszahlString);       
     end if;
 
 
